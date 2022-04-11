@@ -1,23 +1,27 @@
-import logo from './logo.svg';
 import './App.css';
+import { Switch, Route, Link } from 'react-router-dom';
 
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <div style={{display: 'flex', justifyContent: 'space-around', height: '30px'}}>
+        <Link to="/">home</Link>
+        <Link to="/phone">phone</Link>
+        <Link to="/chat">chat</Link>
+      </div>
+      <div style={{height: '600px', backgroundColor: 'blue', color: 'white', fontSize: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+        <Switch>
+          <Route exact path="/">
+            home content
+          </Route>
+          <Route path="/phone">
+            phone content
+          </Route>
+          <Route path="/chat">
+            chat content
+          </Route>
+        </Switch>
+      </div>
     </div>
   );
 }
