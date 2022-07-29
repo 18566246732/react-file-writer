@@ -36,3 +36,11 @@
     transform: rotate(360deg);
   }
 }
+
+.date-picker {
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  white-space: nowrap;
+  margin: 20px;
+}
