@@ -1,10 +1,11 @@
-export function workerBuilder(worker: () => void) {
-    const code = worker.toString();
-    console.log(code, 'code');
-    
-    const blob = new Blob([`import WebMWriter from 'webm-writer'; (${code})()`], { type: 'text/javascript' });
+export function workerBuilder(worker: () => void, deps: Array<() => void>) {
+    const depsCode = deps.map(dep => `(${dep.toString()})(self);`).join('');
+    const rawCode = worker.toString();
+    const code = `
+        ${depsCode}
+        (${rawCode})(self);
+    `;
+    const blob = new Blob([code], { type: 'text/javascript' });
     const workerURL = window.URL.createObjectURL(blob);
-    console.log('new');
-    
-    return new Worker(workerURL, { type: 'module' });
+    return new Worker(workerURL);
 }

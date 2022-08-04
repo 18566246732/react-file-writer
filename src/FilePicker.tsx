@@ -1,12 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { workerBuilder } from './WorkerBuilder';
+import fileWorker from './file-worker';
+import db from './db';
+import webmWriter2 from './webm-writer2';
 
 let frameReadable: ReadableStream<VideoFrame>;
 let handle: Worker;
 let trackSettings: MediaTrackSettings;
 let number = 0;
 let isTextWriterClosed = false;
+let recoderFileWritable: FileSystemWritableFileStream;
+let mediaRecorder: MediaRecorder;
 const FILE_QUOTA = 1024 * 1024; // 1MB
 
 const FilePicker = () => {
@@ -49,7 +55,7 @@ const FilePicker = () => {
         });
         handle.onmessage = (ev: any) => {
             switch (ev.data.cmd) {
-                case 'logWriter1Started':
+                case 'startWriting':
                     (function sendLogs() {
                         const inteval = setInterval(() => {
                             if (isTextWriterClosed) {
@@ -83,7 +89,7 @@ const FilePicker = () => {
 
     const clearFile = () => {
         handle.postMessage({
-            cmd: 'clearLog'
+            cmd: 'clearLogFile'
         });
     }
 
@@ -119,7 +125,6 @@ const FilePicker = () => {
             }]
         });
 
-
         handle.postMessage({
             cmd: 'writeRealTimeLog',
             targetFileHandle
@@ -132,20 +137,81 @@ const FilePicker = () => {
         });
     }
 
-    useEffect(() => {
-        navigator.mediaDevices.getUserMedia({ video: { 
-            width: 800,
-            frameRate: 30
-        }, audio: false }).then(stream => {
-            videoRef.current!.srcObject = stream
-            const videoTrack = stream.getVideoTracks()[0];
-            trackSettings = videoTrack.getSettings(); 
-            const vtp = new MediaStreamTrackProcessor({
-                track: videoTrack
-            });
-            frameReadable = vtp.readable;
-            handle = new Worker('file-worker.js');
+    const startRecorder = async () => {
+        const recoderFileHandle = await window.showSaveFilePicker({ 
+            suggestedName: 'video.webm',
+            types: [{
+                description: 'video file',
+                accept: { 
+                    'video/webm': ['.webm']
+                } 
+            }]
         });
+
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                width: 800,
+                frameRate: 30
+            },
+            audio: true
+        }).then(async stream => {
+            videoRef.current!.srcObject = stream
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+            recoderFileWritable = await recoderFileHandle.createWritable();
+            mediaRecorder.ondataavailable = async e => {
+                recoderFileWritable.write(e.data);
+                // const data = await e.data.arrayBuffer();
+
+                console.log(e.data, 'data');
+                
+                // handle.postMessage({
+                //     cmd: 'onRecorderData',
+                //     data
+                // }, [data])
+            }
+            const timeSlice = 1000
+            mediaRecorder.start(timeSlice);
+
+            mediaRecorder.onstop = async () => {
+                console.log('stopped');
+                
+                await recoderFileWritable.close();
+                const file = await recoderFileHandle.getFile();
+                console.log(file, 'file');
+                
+            }
+
+            // handle.postMessage({
+            //     recoderFileHandle,
+            //     cmd: 'startRecorder'
+            // }, [])  
+        })
+
+    }
+
+    const stopRecorder = () => {
+        mediaRecorder.stop();
+        // handle.postMessage({
+        //     cmd: 'stopRecorder'
+        // })
+    }
+
+    useEffect(() => {
+        // navigator.mediaDevices.getUserMedia({ video: { 
+        //     width: 800,
+        //     frameRate: 30
+        // }, audio: true }).then(stream => {
+        //     videoRef.current!.srcObject = stream
+        //     // const videoTrack = stream.getVideoTracks()[0];
+        //     const videoTrack = stream.getTracks()[0];
+        //     trackSettings = videoTrack.getSettings();
+        //     const vtp = new MediaStreamTrackProcessor({
+        //         track: videoTrack
+        //     });
+        //     frameReadable = vtp.readable;
+        //     handle = workerBuilder(fileWorker, [db, webmWriter2]);
+        // });
+        handle = workerBuilder(fileWorker, [db, webmWriter2]);
     }, [])
 
     return <div>
@@ -159,6 +225,11 @@ const FilePicker = () => {
             <button onClick={stopRecording}>
                 stop recording
             </button>
+        </div>
+
+        <div>
+            <button onClick={startRecorder}>start recorder</button>
+            <button onClick={stopRecorder}>save recorder</button>
         </div>
 
         <div>
