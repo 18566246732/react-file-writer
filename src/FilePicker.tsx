@@ -14,6 +14,7 @@ let isTextWriterClosed = false;
 let recoderFileWritable: FileSystemWritableFileStream;
 let mediaRecorder: MediaRecorder;
 const FILE_QUOTA = 1024 * 1024; // 1MB
+let stream4Recorder: MediaStream;
 
 const FilePicker = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -148,45 +149,32 @@ const FilePicker = () => {
             }]
         });
 
-        navigator.mediaDevices.getUserMedia({
-            video: {
-                width: 800,
-                frameRate: 30
-            },
-            audio: true
-        }).then(async stream => {
-            videoRef.current!.srcObject = stream
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-            recoderFileWritable = await recoderFileHandle.createWritable();
-            mediaRecorder.ondataavailable = async e => {
-                recoderFileWritable.write(e.data);
-                // const data = await e.data.arrayBuffer();
+        const option = {
+            audioBitsPerSecond : 128000,
+            videoBitsPerSecond : 2500000,
+            mimeType: 'video/webm; codecs=vp9'
+        }
+        mediaRecorder = new MediaRecorder(stream4Recorder, option);
+        recoderFileWritable = await recoderFileHandle.createWritable();
+        console.log(mediaRecorder, 'mediaRecorder');
+        
 
-                console.log(e.data, 'data');
-                
-                // handle.postMessage({
-                //     cmd: 'onRecorderData',
-                //     data
-                // }, [data])
-            }
-            const timeSlice = 1000
-            mediaRecorder.start(timeSlice);
+        mediaRecorder.ondataavailable = async e => {
+            console.log(e.data, 'e.data');
+            
+            recoderFileWritable.write(e.data);
+        }
+        const timeSlice = 1000
+        mediaRecorder.start(timeSlice);
 
-            mediaRecorder.onstop = async () => {
-                console.log('stopped');
-                
-                await recoderFileWritable.close();
-                const file = await recoderFileHandle.getFile();
-                console.log(file, 'file');
-                
-            }
-
-            // handle.postMessage({
-            //     recoderFileHandle,
-            //     cmd: 'startRecorder'
-            // }, [])  
-        })
-
+        mediaRecorder.onstop = async () => {
+            console.log('stopped');
+            
+            await recoderFileWritable.close();
+            const file = await recoderFileHandle.getFile();
+            console.log(file, 'file');
+            
+        } 
     }
 
     const stopRecorder = () => {
@@ -212,6 +200,19 @@ const FilePicker = () => {
         //     handle = workerBuilder(fileWorker, [db, webmWriter2]);
         // });
         handle = workerBuilder(fileWorker, [db, webmWriter2]);
+
+
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                width: 800,
+                frameRate: 30
+            },
+            audio: true
+        }).then(async stream => {
+            videoRef.current!.srcObject = stream
+            stream4Recorder = stream;
+        })
+
     }, [])
 
     return <div>
