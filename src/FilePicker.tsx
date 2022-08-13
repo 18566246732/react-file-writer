@@ -15,6 +15,8 @@ let recoderFileWritable: FileSystemWritableFileStream;
 let mediaRecorder: MediaRecorder;
 const FILE_QUOTA = 1024 * 1024; // 1MB
 let stream4Recorder: MediaStream;
+let audioStream: MediaStream;
+let audioElement: HTMLAudioElement;
 
 const FilePicker = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -139,22 +141,42 @@ const FilePicker = () => {
     }
 
     const startRecorder = async () => {
+        const ctx = new AudioContext();
+
+        const audioSourceNode1= ctx.createMediaElementSource(audioElement);
+        const audioDestinationNode = ctx.createMediaStreamDestination();
+        const audioSourceNode2 = ctx.createMediaStreamSource(audioStream);
+        console.log(audioDestinationNode.channelCount, 'audioDestinationNode before');
+
+        audioSourceNode1.connect(audioDestinationNode);
+        audioSourceNode2.connect(audioDestinationNode);
+
+        console.log(audioDestinationNode.channelCount, 'audioDestinationNode after');
+        
+
+        audioElement.play();
+
+
         const recoderFileHandle = await window.showSaveFilePicker({ 
-            suggestedName: 'video.webm',
+            suggestedName: 'video.mp4',
             types: [{
                 description: 'video file',
                 accept: { 
-                    'video/webm': ['.webm']
-                } 
+                    'video/mp4': ['.mp4']
+                }
             }]
         });
 
         const option = {
             audioBitsPerSecond : 128000,
             videoBitsPerSecond : 2500000,
-            mimeType: 'video/webm; codecs=vp9'
+            mimeType: 'video/mp4; codecs=vp9'
         }
-        mediaRecorder = new MediaRecorder(stream4Recorder, option);
+
+        const allTracks = [...stream4Recorder.getTracks(), ...audioDestinationNode.stream.getAudioTracks()];
+        
+        const mixedStream = new MediaStream(allTracks);
+        mediaRecorder = new MediaRecorder(mixedStream, option);
         recoderFileWritable = await recoderFileHandle.createWritable();
         console.log(mediaRecorder, 'mediaRecorder');
         
@@ -179,38 +201,33 @@ const FilePicker = () => {
 
     const stopRecorder = () => {
         mediaRecorder.stop();
-        // handle.postMessage({
-        //     cmd: 'stopRecorder'
-        // })
     }
 
     useEffect(() => {
-        // navigator.mediaDevices.getUserMedia({ video: { 
-        //     width: 800,
-        //     frameRate: 30
-        // }, audio: true }).then(stream => {
-        //     videoRef.current!.srcObject = stream
-        //     // const videoTrack = stream.getVideoTracks()[0];
-        //     const videoTrack = stream.getTracks()[0];
-        //     trackSettings = videoTrack.getSettings();
-        //     const vtp = new MediaStreamTrackProcessor({
-        //         track: videoTrack
-        //     });
-        //     frameReadable = vtp.readable;
-        //     handle = workerBuilder(fileWorker, [db, webmWriter2]);
-        // });
         handle = workerBuilder(fileWorker, [db, webmWriter2]);
+        audioElement = new Audio('https://webrtc.github.io/samples/src/video/chrome.webm');
+        audioElement.crossOrigin = "anonymous"
 
-
-        navigator.mediaDevices.getUserMedia({
+        navigator.mediaDevices.getDisplayMedia({
             video: {
                 width: 800,
                 frameRate: 30
             },
             audio: true
-        }).then(async stream => {
+        }).then(stream => {
             videoRef.current!.srcObject = stream
             stream4Recorder = stream;
+        })
+
+        navigator.mediaDevices.getUserMedia({
+            audio: {
+                sampleRate: 44100,
+                echoCancellation: true,
+                noiseSuppression: true
+            },
+            video: false
+        }).then(stream => {
+            audioStream = stream
         })
 
     }, [])
