@@ -27,12 +27,12 @@ fileWriter.on('OPFSFilesInfo', (filesInfo) => {
 });
 
 const writeLogs = () => {
+    console.log(activeWriter.realtimeLogWriter, 'activeWriter.realtimeLogWriter');
+    
     if (activeWriter.normalLogWriter || activeWriter.realtimeLogWriter) {
         return;
     }
     const inteval = setInterval(() => {
-        console.log(activeWriter.normalLogWriter, 'activeWriter.normalLogWriter');
-        console.log(activeWriter.realtimeLogWriter, 'activeWriter.realtimeLogWriter');
         
         if (!activeWriter.normalLogWriter && !activeWriter.realtimeLogWriter) {
             clearInterval(inteval);
@@ -43,11 +43,15 @@ const writeLogs = () => {
 }
 
 fileWriter.on('createLogFileReady', () => {
+    console.log('createLogFileReady');
+    
     writeLogs();
     activeWriter.normalLogWriter = true;
 });
 
 fileWriter.on('createRealTimeLogFileReady', () => {
+    console.log('createRealTimeLogFileReady');
+    
     writeLogs();
     activeWriter.realtimeLogWriter = true;
 })
@@ -70,10 +74,7 @@ const FilePicker = () => {
 
     const startLogging = () => {
         fileWriter.createLogFile('medis_SDK', '.txt')
-        writeLogs();
     }
-
-
 
     const saveLogging = () => {
         fileWriter.saveLogFile();
@@ -92,11 +93,17 @@ const FilePicker = () => {
             fileName: 'realtimeLog', 
             fileExtension: '.txt'
         });
-        writeLogs();
     }
 
     const stopRealTimeLog = async () => {
         fileWriter.stopWriteRealTimeLog();
+    }
+
+    const emitLogFromWorker = () => {
+        const worker = new Worker('./worker.js');
+        worker.postMessage({
+            cmd: 'startEmitLogs'
+        })
     }
 
     return <div>
@@ -106,6 +113,7 @@ const FilePicker = () => {
         </video>
 
         <div>
+            <h3>recording a shared screen</h3>
             <button onClick={startWriteVideoFile}>
                 start WriteVideoFile
             </button>
@@ -115,6 +123,7 @@ const FilePicker = () => {
         </div>
 
         <div>
+            <h3>write normal log with log-rotate</h3>
             <button onClick={startLogging}>start logging</button>
             <button onClick={saveLogging}>save logging</button>
             <button onClick={checkAllFiles}>export logging</button>
@@ -122,6 +131,7 @@ const FilePicker = () => {
         </div>
 
         <div>
+            <h3>move files from private disk space into designated folder</h3>
             <div className='date-picker'>
                 <div style={{display: 'flex'}}>start time: <DatePicker selected={startDate} onChange={(date: Date) => setStartDate(date)} /></div>
                 <div style={{display: 'flex'}}>end time: <DatePicker selected={endDate} onChange={(date: Date) => setEndDate(date)} /></div>
@@ -134,8 +144,14 @@ const FilePicker = () => {
             })}>move files within Date range</button>
         </div>
         <div>
+            <h3>real time debugging</h3>
             <button onClick={writeRealTimeLog}>real time debugging</button>
             <button onClick={stopRealTimeLog}>stop real time debugging</button>
+        </div>
+
+        <div>
+            <h3>for web worker</h3>
+            <button onClick={emitLogFromWorker}>start a worker and emit logs</button>
         </div>
     </div>
 };

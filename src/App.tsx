@@ -11,7 +11,7 @@ function App() {
         <Link to="/phone">phone</Link>
         <Link to="/chat">chat</Link>
       </div>
-      <div style={{height: '800px', backgroundColor: 'blue', color: 'white', fontSize: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div style={{ backgroundColor: 'blue', color: 'white', fontSize: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         <Switch>
           <Route exact path="/">
             <FilePicker />
